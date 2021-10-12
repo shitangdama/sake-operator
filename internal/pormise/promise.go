@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
 
 // Any is a substitute for interface{}
 type Any = interface{}
+
+type response struct {
+	res Any
+	err error
+}
 
 // A Promise is a proxy for a value not necessarily known when
 // the promise is created. It allows you to associate handlers
@@ -16,6 +22,8 @@ type Any = interface{}
 // returns a promise to supply the value at some point in the future.
 type Promise struct {
 	pending bool
+
+	ctx context.Context
 
 	// A function that is passed with the arguments resolve and reject.
 	// The executor function is executed immediately by the Promise implementation,
@@ -28,8 +36,9 @@ type Promise struct {
 	// an error or panic occurred.
 	executor func(resolve func(Any), reject func(error))
 
+	result chan *response
 	// Stores the result passed to resolve()
-	result Any
+	// result Any
 
 	// Stores the error passed to reject()
 	err error
@@ -43,21 +52,31 @@ type Promise struct {
 
 // New instantiates and returns a pointer to a new Promise.
 func New(executor func(resolve func(Any), reject func(error))) *Promise {
+
+	// 这里还要解决一下超时
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var promise = &Promise{
+		ctx: ctx,
+		// cancel:   cancel,
 		pending:  true,
 		executor: executor,
-		result:   nil,
+		result:   make(chan *response, 1),
 		err:      nil,
 		mutex:    sync.Mutex{},
-		wg:       sync.WaitGroup{},
+		// wg:       sync.WaitGroup{},
 	}
+	// promise.wg.Add(1)
 
-	promise.wg.Add(1)
-
-	go func() {
-		defer promise.handlePanic()
+	defer close(promise.result)
+	fmt.Println(7777)
+	go func(ctx context.Context) {
+		// defer promise.handlePanic()
+		fmt.Println(888888)
 		promise.executor(promise.resolve, promise.reject)
-	}()
+	}(promise.ctx)
 
 	return promise
 }
@@ -74,14 +93,22 @@ func (promise *Promise) resolve(resolution Any) {
 	switch result := resolution.(type) {
 	case *Promise:
 		flattenedResult, err := result.Await()
+		fmt.Println(flattenedResult)
 		if err != nil {
 			promise.mutex.Unlock()
 			promise.reject(err)
 			return
 		}
-		promise.result = flattenedResult
+		// promise.result = flattenedResult
+
+		// promise.result <- &response{
+		// 	result: flattenedResult,
+		// }
 	default:
-		promise.result = result
+		// promise.result <- &response{
+		// 	result: result,
+		// }
+		// promise.result = result
 	}
 	promise.pending = false
 
@@ -101,22 +128,23 @@ func (promise *Promise) reject(err error) {
 	promise.err = err
 	promise.pending = false
 
-	promise.wg.Done()
+	promise.ctx.Done()
 }
 
-func (promise *Promise) handlePanic() {
-	e := recover()
-	if e != nil {
-		switch err := e.(type) {
-		case nil:
-			promise.reject(fmt.Errorf("panic recovery with nil error"))
-		case error:
-			promise.reject(fmt.Errorf("panic recovery with error: %s", err.Error()))
-		default:
-			promise.reject(fmt.Errorf("panic recovery with unknown error: %s", fmt.Sprint(err)))
-		}
-	}
-}
+// func (promise *Promise) handlePanic() {
+// 	e := recover()
+
+// 	if e != nil {
+// 		switch err := e.(type) {
+// 		case nil:
+// 			promise.reject(fmt.Errorf("panic recovery with nil error"))
+// 		case error:
+// 			promise.reject(fmt.Errorf("panic recovery with error: %s", err.Error()))
+// 		default:
+// 			promise.reject(fmt.Errorf("panic recovery with unknown error: %s", fmt.Sprint(err)))
+// 		}
+// 	}
+// }
 
 // Then appends fulfillment and rejection handlers to the promise,
 // and returns a new promise resolving to the return value of the called handler.
@@ -148,20 +176,38 @@ func (promise *Promise) Catch(rejection func(err error) error) *Promise {
 // Returns value and error.
 // Call on an already resolved Promise to get its result and error
 func (promise *Promise) Await() (Any, error) {
-	promise.wg.Wait()
+	// promise.wg.Wait()
+
+	for {
+		select {
+		case <-promise.ctx.Done():
+			fmt.Println(33333)
+			fmt.Println(22222222)
+			return promise.result, promise.err
+		case r := <-promise.result:
+			if r.err == nil {
+				// 	out <- r
+				fmt.Println(11111)
+			}
+			return promise.result, promise.err
+		}
+	}
+
 	return promise.result, promise.err
 }
 
-// Resolve returns a Promise that has been resolved with a given value.
-func Resolve(resolution Any) *Promise {
-	return New(func(resolve func(Any), reject func(error)) {
-		resolve(resolution)
-	})
-}
+// 这是两个对外的函数
 
-// Reject returns a Promise that has been rejected with a given error.
-func Reject(err error) *Promise {
-	return New(func(resolve func(Any), reject func(error)) {
-		reject(err)
-	})
-}
+// // Resolve returns a Promise that has been resolved with a given value.
+// func Resolve(resolution Any) *Promise {
+// 	return New(func(resolve func(Any), reject func(error)) {
+// 		resolve(resolution)
+// 	})
+// }
+
+// // Reject returns a Promise that has been rejected with a given error.
+// func Reject(err error) *Promise {
+// 	return New(func(resolve func(Any), reject func(error)) {
+// 		reject(err)
+// 	})
+// }
