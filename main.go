@@ -20,9 +20,9 @@ type Promise struct {
 
 	executor func(resolve func(Any), reject func(error))
 
-	result chan *response
+	// result chan *response
 
-	// result Any
+	result Any
 
 	err error
 
@@ -32,6 +32,7 @@ type Promise struct {
 }
 
 // https://blog.csdn.net/inthat/article/details/106917358
+// 这个地方可能要穿进去一个
 func New(executor func(resolve func(Any), reject func(error))) *Promise {
 
 	var promise = &Promise{
@@ -75,7 +76,7 @@ func (promise *Promise) resolve(resolution Any) {
 			promise.reject(err)
 			return
 		}
-		// promise.result = flattenedResult
+		promise.result = flattenedResult
 
 		// promise.result <- &response{
 		// 	result: flattenedResult,
@@ -84,7 +85,7 @@ func (promise *Promise) resolve(resolution Any) {
 		// promise.result <- &response{
 		// 	result: result,
 		// }
-		// promise.result = result
+		promise.result = result
 	}
 	promise.pending = false
 
@@ -106,29 +107,32 @@ func (promise *Promise) reject(err error) {
 	promise.final <- struct{}{}
 }
 
+func (promise *Promise) Cancel() {
+	promise.final <- struct{}{}
+}
+
 // https://github.com/fanliao/go-promise/blob/1890db352a72f9e6c6219c20111355cddc795297/future.go#L137
-// 修改下是否是有一个final
+
 func (promise *Promise) Await() (Any, error) {
 	// promise.wg.Wait()
 	fmt.Println(123123)
 	for {
 		select {
 		case <-promise.final:
-			fmt.Println(33333)
-			fmt.Println(22222222)
-			return promise.result, promise.err
-		case r := <-promise.result:
-			// if r.err == nil {
-			// 	out <- r
-			fmt.Println("result")
-			fmt.Println(r)
-			// }
 			return promise.result, promise.err
 		}
 	}
 
 	return promise.result, promise.err
 }
+
+// then就是新建一个promise
+
+// 这里要考虑下
+// 实现then
+// 实现 OnSuccess， OnFailure， OnComplete， OnCancel
+// addCallback
+// All, Race, Reduce
 
 func main() {
 	var promise = New(func(resolve func(Any), reject func(error)) {
@@ -138,10 +142,13 @@ func main() {
 	})
 
 	// promise.
-	// 	Then(func(data Any) Any {
+	// 	Then(func(data Any) Any
 	// 		t.Log(4444444)
 	// 		return data.(int) + 1
 	// 	})
 
-	promise.Await()
+	r, err := promise.Await()
+
+	fmt.Println(err)
+	fmt.Println(r)
 }

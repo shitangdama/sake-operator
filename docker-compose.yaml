@@ -1,0 +1,36 @@
+version: '3'
+services:
+    database:
+        image: postgres:12
+        ports:
+            - 127.0.0.1:5555:5432
+        environment:
+            POSTGRES_DB: test
+            POSTGRES_USER: shitangdama
+            POSTGRES_PASSWORD: kbr199sd5shi
+    pgbouncer:
+        # restart: always
+        image: pgbouncer/pgbouncer
+        ports:
+            - 127.0.0.1:6432:6432
+        environment:
+            PGBOUNCER_LISTEN_PORT: 6432
+            PGBOUNCER_LISTEN_ADDR: pgbouncer
+            PGBOUNCER_MAX_CLIENT_CONN: 10000
+            PGBOUNCER_DEFAULT_POOL_SIZE: 15
+            PGBOUNCER_POOL_MODE: transaction
+            DATABASES_MAX_DB_CONNECTIONS: 15
+            DATABASES_HOST: database
+            DATABASES_PORT: 5432
+            DATABASES_DBNAME: test
+            DATABASES_USER: shitangdama
+            DATABASES_PASSWORD: kbr199sd5shi
+            PGBOUNCER_SERVER_RESET_QUERY: ""
+            # pgbouncer_auth_type: md5
+            # pgbouncer_auth_file: /etc/pgbouncer/userlist.txt
+            # PGBOUNCER_AUTH_TYPE: md5
+            # PGBOUNCER_AUTH_FILE: /etc/pgbouncer/userlist/userlist.txt
+            PGBOUNCER_AUTH_USER: shitangdama
+            PGBOUNCER_PASSWORD: kbr199sd5shi
+        volumes:
+            - ./pgbouncer:/etc/pgbouncer/userlist:ro
