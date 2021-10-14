@@ -11,3 +11,5 @@ https://github.com/mostafa-asg/dag/blob/master/job.go
 需要一个context 怎么传入context
 
 https://github.com/vardius/gollback/blob/master/gollback.go
+
+https://github.com/rajatkb/go-promise/blob/main/Promise.go
