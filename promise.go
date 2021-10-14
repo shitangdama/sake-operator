@@ -129,7 +129,12 @@ func (promise *Promise) Then(fulfillment func(data Any) Any) *Promise {
 	})
 }
 
-// //Race ... resolves to the very first promise, rejects if none of the promises resolves
-// func Race(promises []*Promise) *Promise {
+func (promise *Promise) Pipe() *Promise {
+	return nil
+}
 
-// }
+// //Race ... resolves to the very first promise, rejects if none of the promises resolves
+func Race(promises []*Promise) *Promise {
+
+	return nil
+}
