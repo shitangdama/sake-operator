@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"unsafe"
@@ -42,8 +43,7 @@ func New(executor func(resolve func(Any), reject func(error))) *Promise {
 		// unsafe.Pointer(val),
 	}
 	go func() {
-
-		// defer promise.handlePanic()
+		defer promise.handlePanic()
 		promise.executor(promise.resolve, promise.reject)
 	}()
 
@@ -68,6 +68,20 @@ func (promise *Promise) resolve(resolution Any) {
 func (promise *Promise) reject(err error) {
 	promise.err = err
 	close(promise.final)
+}
+
+func (promise *Promise) handlePanic() {
+	e := recover()
+	if e != nil {
+		switch err := e.(type) {
+		case nil:
+			promise.reject(fmt.Errorf("panic recovery with nil error"))
+		case error:
+			promise.reject(fmt.Errorf("panic recovery with error: %s", err.Error()))
+		default:
+			promise.reject(fmt.Errorf("panic recovery with unknown error: %s", fmt.Sprint(err)))
+		}
+	}
 }
 
 // Await is xxx
@@ -115,7 +129,7 @@ func (promise *Promise) Then(fulfillment func(data Any) Any) *Promise {
 	})
 }
 
-//Race ... resolves to the very first promise, rejects if none of the promises resolves
-func Race(promises []*Promise) *Promise {
+// //Race ... resolves to the very first promise, rejects if none of the promises resolves
+// func Race(promises []*Promise) *Promise {
 
-}
+// }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -70,6 +71,32 @@ func TestPromiseThenNested(t *testing.T) {
 		}).
 		Catch(func(err error) error {
 			t.Error("Catch triggered in .Then test")
+			return nil
+		})
+
+	result, err := promise.Await()
+	t.Log(result)
+	t.Log(err)
+}
+
+// https://github.com/chebyrash/promise/blob/master/promise_test.go
+
+func TestPromiseCatchNested(t *testing.T) {
+	var promise = New(func(resolve func(Any), reject func(error)) {
+		resolve(New(func(res func(Any), rej func(error)) {
+			rej(errors.New("nested fail"))
+		}))
+	})
+
+	promise.
+		Then(func(data Any) Any {
+			t.Error("Then triggered in .Catch test")
+			return nil
+		}).
+		Catch(func(err error) error {
+			if err.Error() != "nested fail" {
+				t.Error("Rejected promise doesn't flatten")
+			}
 			return nil
 		})
 
