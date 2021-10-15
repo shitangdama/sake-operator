@@ -113,8 +113,11 @@ func (promise *Promise) Cancel() {
 // Catch Appends a rejection handler to the promise,
 // and returns a new promise resolving to the return value of the handler.
 func (promise *Promise) Catch(rejection func(err error) error) *Promise {
+
+	result, err := promise.Await()
+
 	newPromise := New(func(context *Promise) {
-		result, err := promise.Await()
+
 		if err != nil {
 			context.reject(rejection(err))
 			return
@@ -124,6 +127,24 @@ func (promise *Promise) Catch(rejection func(err error) error) *Promise {
 
 	return newPromise
 }
+
+// // Catch Appends a rejection handler to the promise,
+// // and returns a new promise resolving to the return value of the handler.
+// func (promise *Promise) Catch(rejection func(err error) error) *Promise {
+
+// 	result, err := promise.Await()
+
+// 	newPromise := New(func(context *Promise) {
+
+// 		if err != nil {
+// 			context.reject(rejection(err))
+// 			return
+// 		}
+// 		context.resolve(result)
+// 	})
+
+// 	return newPromise
+// }
 
 // Then appends fulfillment and rejection handlers to the promise,
 // and returns a new promise resolving to the return value of the called handler.
