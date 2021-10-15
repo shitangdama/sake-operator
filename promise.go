@@ -19,7 +19,7 @@ type Promise struct {
 	ID    int //Id can be used as identity of Future
 	final chan struct{}
 
-	executor func(resolve func(Any), reject func(error))
+	executor func(p *Promise)
 
 	result interface{} // The Promise's data.
 	err    error       // The error status.
@@ -33,8 +33,10 @@ type Promise struct {
 	valMap sync.Map
 }
 
+// 这里
+
 // New instantiates and returns a pointer to a new Promise.
-func New(executor func(resolve func(Any), reject func(error))) *Promise {
+func New(executor func(p *Promise)) *Promise {
 
 	promise := &Promise{
 		ID:       rand.Int(),
@@ -42,9 +44,14 @@ func New(executor func(resolve func(Any), reject func(error))) *Promise {
 		final:    make(chan struct{}),
 		// unsafe.Pointer(val),
 	}
+	// go func(promise *Promise) {
+	// 	defer promise.handlePanic()
+	// 	promise.executor(promise)
+	// }(promise)
+
 	go func() {
 		defer promise.handlePanic()
-		promise.executor(promise.resolve, promise.reject)
+		promise.executor(promise)
 	}()
 
 	return promise
@@ -106,35 +113,31 @@ func (promise *Promise) Cancel() {
 // Catch Appends a rejection handler to the promise,
 // and returns a new promise resolving to the return value of the handler.
 func (promise *Promise) Catch(rejection func(err error) error) *Promise {
-	return New(func(resolve func(Any), reject func(error)) {
+	newPromise := New(func(context *Promise) {
 		result, err := promise.Await()
 		if err != nil {
-			reject(rejection(err))
+			context.reject(rejection(err))
 			return
 		}
-		resolve(result)
+		context.resolve(result)
 	})
+
+	return newPromise
 }
 
 // Then appends fulfillment and rejection handlers to the promise,
 // and returns a new promise resolving to the return value of the called handler.
 func (promise *Promise) Then(fulfillment func(data Any) Any) *Promise {
-	return New(func(resolve func(Any), reject func(error)) {
+	return New(func(context *Promise) {
 		result, err := promise.Await()
 		if err != nil {
-			reject(err)
+			context.reject(err)
 			return
 		}
-		resolve(fulfillment(result))
+		context.resolve(fulfillment(result))
 	})
 }
 
-func (promise *Promise) Pipe() *Promise {
-	return nil
-}
-
-// //Race ... resolves to the very first promise, rejects if none of the promises resolves
-func Race(promises []*Promise) *Promise {
-
-	return nil
-}
+// func (promise *Promise) Pipe() *Promise {
+// 	return nil
+// }
